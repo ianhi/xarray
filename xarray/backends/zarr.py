@@ -105,7 +105,10 @@ def _choose_default_mode(
 
 
 def _zarr_v3() -> bool:
-    return module_available("zarr", minversion="3")
+    # hack for this test only
+    # version being pickd up as 3.0.0b which is apparently not greater than 3
+    # return True
+    return module_available("zarr", minversion="3.0.0a0")
 
 
 # need some special secret attributes to tell us the dimensions
