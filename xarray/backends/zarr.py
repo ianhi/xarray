@@ -1132,6 +1132,10 @@ class ZarrStore(AbstractWritableDataStore):
                 if c in encoding:
                     encoding["config"][c] = encoding.pop(c)
 
+        print(fill_value)
+        print(encoding)
+        print(dtype)
+        print(shape)
         zarr_array = self.zarr_group.create(
             name,
             shape=shape,
