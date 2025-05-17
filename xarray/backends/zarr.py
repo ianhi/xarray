@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import pandas as pd
+from packaging.version import Version
 
 from xarray import coding, conventions
 from xarray.backends.common import (
@@ -105,7 +106,10 @@ def _choose_default_mode(
 
 
 def _zarr_v3() -> bool:
-    return module_available("zarr", minversion="3")
+    # hack for this test only
+    # version being pickd up as 3.0.0b which is apparently not greater than 3
+    # return True
+    return module_available("zarr", minversion="3.0.0a0")
 
 
 # need some special secret attributes to tell us the dimensions
@@ -877,10 +881,24 @@ class ZarrStore(AbstractWritableDataStore):
             if zarr_array.fill_value is not None:
                 attributes["_FillValue"] = zarr_array.fill_value
         elif "_FillValue" in attributes:
-            original_zarr_dtype = zarr_array.metadata.data_type
-            attributes["_FillValue"] = FillValueCoder.decode(
-                attributes["_FillValue"], original_zarr_dtype.value
-            )
+            # TODO update version check for the released version with dtypes
+            #  probably be 3.1
+            import zarr
+
+            if Version(zarr.__version__) >= Version("3.0.6"):
+                attributes["_FillValue"] = (
+                    # Use the new dtype infrastructure instead of doing xarray
+                    # specific fill value decoding
+                    zarr_array.metadata.data_type.from_json_value(
+                        attributes["_FillValue"],
+                        zarr_format=zarr_array.metadata.zarr_format,
+                    )
+                )
+            else:
+                original_zarr_dtype = zarr_array.metadata.data_type
+                attributes["_FillValue"] = FillValueCoder.decode(
+                    attributes["_FillValue"], original_zarr_dtype.value
+                )
 
         return Variable(dimensions, data, attributes, encoding)
 
