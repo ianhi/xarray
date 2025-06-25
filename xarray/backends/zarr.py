@@ -885,19 +885,19 @@ class ZarrStore(AbstractWritableDataStore):
             #  probably be 3.1
             import zarr
 
+            #
             if Version(zarr.__version__) >= Version("3.0.6"):
                 attributes["_FillValue"] = (
                     # Use the new dtype infrastructure instead of doing xarray
                     # specific fill value decoding
-                    zarr_array.metadata.data_type.from_json_value(
+                    FillValueCoder.decode(
                         attributes["_FillValue"],
-                        zarr_format=zarr_array.metadata.zarr_format,
+                        zarr_array.metadata.data_type.to_native_dtype(),
                     )
                 )
             else:
-                original_zarr_dtype = zarr_array.metadata.data_type
                 attributes["_FillValue"] = FillValueCoder.decode(
-                    attributes["_FillValue"], original_zarr_dtype.value
+                    attributes["_FillValue"], zarr_array.metadata.data_type.value
                 )
 
         return Variable(dimensions, data, attributes, encoding)
@@ -1015,6 +1015,7 @@ class ZarrStore(AbstractWritableDataStore):
         variables_encoded, attributes = self.encode(
             {vn: variables[vn] for vn in new_variable_names}, attributes
         )
+        print(f"{variables_encoded=}")
 
         if existing_variable_names:
             # We make sure that values to be appended are encoded *exactly*
@@ -1067,6 +1068,7 @@ class ZarrStore(AbstractWritableDataStore):
         else:
             variables_to_set = variables_encoded
 
+        print(f"{variables_to_set=}")
         self.set_variables(
             variables_to_set, check_encoding_set, writer, unlimited_dims=unlimited_dims
         )
@@ -1075,6 +1077,7 @@ class ZarrStore(AbstractWritableDataStore):
             if _zarr_v3():
                 kwargs["zarr_format"] = self.zarr_group.metadata.zarr_format
             zarr.consolidate_metadata(self.zarr_group.store, **kwargs)
+        print("DONE STORE.STORE")
 
     def sync(self):
         pass
@@ -1124,6 +1127,7 @@ class ZarrStore(AbstractWritableDataStore):
     def _create_new_array(
         self, *, name, shape, dtype, fill_value, encoding, attrs
     ) -> ZarrArray:
+        # STRING ERROR FOR OBJECT HERE
         if coding.strings.check_vlen_dtype(dtype) is str:
             dtype = str
 
@@ -1147,6 +1151,8 @@ class ZarrStore(AbstractWritableDataStore):
                 if c in encoding:
                     encoding["config"][c] = encoding.pop(c)
 
+        print("create")
+        print(dtype)
         zarr_array = self.zarr_group.create(
             name,
             shape=shape,
@@ -1253,6 +1259,8 @@ class ZarrStore(AbstractWritableDataStore):
 
                 encoding["overwrite"] = True if self._mode == "w" else False
 
+                print(dtype)
+                print(";sdf")
                 zarr_array = self._create_new_array(
                     name=name,
                     dtype=dtype,
@@ -1261,6 +1269,8 @@ class ZarrStore(AbstractWritableDataStore):
                     encoding=encoding,
                     attrs=encoded_attrs,
                 )
+                print(zarr_array)
+                print(type(zarr_array))
 
             writer.add(v.data, zarr_array, region)
 
